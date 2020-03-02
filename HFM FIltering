@@ -1,0 +1,336 @@
+#########################################################################################################
+#                                       DOCUMENTED BY :       PRAMOD AGNIHOTRI
+#                                        DATED                          :       30/OCT/2017                                                                       #
+#                                                                                                                                                                 #
+#                                                                                                                                                                 #
+#       The following Python code  extracts the Last modified STAT and TB files from the
+#       given month to month folders in the directory and accordingly renames  each  file
+#       accordingly to the standard format.                                                                                                                                   #
+#                                                                                                                                                                 #
+#                                                                                                                                                                 #
+##########################################################################################################
+
+
+
+
+
+import os,glob,shutil
+from shutil import copyfile
+from distutils.dir_util import copy_tree
+import datetime,time
+
+start=time.time()
+
+
+path = ""
+
+'''
+
+BLOCK 1
+
+'''
+'''
+Please create these folders and specify the path accordingly
+'''
+source=path+"Source"
+backup=path+'backup'
+target=path+'target'
+latest=path+'latest'
+log2=path+"log_monitor2.txt"
+log1=path+"log_monitor.txt"
+file_list=[]
+
+try:
+    os.mkdir(target)
+    print("Created Target File")
+except:
+    print("Target file Already there")
+try:
+    os.mkdir(latest)
+    print("Created Latest File")
+
+except:
+    print("Latest file Already there")
+try:
+    os.mkdir(backup)
+    print("Created Backup File")
+
+except:
+    print("Backup file Already there")
+
+
+
+'''
+lat_file is a folder which holds the latest 
+STAT and NON_STAT files.This folder is flushed
+every time before using 
+'''
+
+try:
+
+    p1=glob.glob(latest+'/*')
+    for i in p1:
+        os.remove(i)
+
+except:
+    print("Lat_files:SUCH FOLDER IS NOT PRESENT")
+
+'''
+does the same thing as the above one but the FILE_REPO
+will have all the files renamed according to the format
+'''
+try:
+    p2=glob.glob(target+'/*')
+    for i in p2:
+        os.remove(i)
+
+except:
+
+    print("FILE_REPO FILE not PRESENT")
+
+'''
+Here the back_up folder which is folder holding the duplicate
+of the orignal folder is made sure it is made empty everytime
+'''
+for dirnames,dirpath ,folder in os.walk('C:/Users/h256225/Desktop/backup'):
+    print(dirpath)
+    for i in dirpath:
+        shutil.rmtree('C:/Users/h256225/Desktop/backup/'+i)
+
+
+
+
+'''
+the com_dir is the orginal directory and the contents are copied to 
+the back_up folder
+'''
+
+
+f=source       #Here the Actual/Original folder where the files and subfiles exist
+d=backup        #The place where we take the back up and start manipulation of the file accordingly
+copy_tree(f,d)
+print("CREATED A COPY OF THE ACTUAL")
+
+
+'''
+END OF BLOCK 1 --------------------------------------------------------------------------------------------------------
+'''
+'''
+
+BLOCK 2
+
+
+'''
+
+file_att_count=1
+count=0                       #This is to avoid the directory access looking for the file
+                              #latest NON-stat FILE
+for dirnames ,dirpath , folder in ( os.walk(backup)):
+    smax_mtime = 0
+    nmax_mtime = 0
+    smax_file = ""  # the latest STAT FILE
+    nmax_file = ""
+    for every_file in folder:
+        if every_file.endswith(".txt"):
+            with open(dirnames + "/" + every_file, "r") as pointer1:  #This loop takes all the first 10 lines each file and puts it in a string
+                content1 = ""
+                count1 = 0
+                for line1 in pointer1:
+                    if count1 < 10:
+                        content1 += (line1)
+                        count1 += 1
+                content1 = content1.lower()
+
+
+            if 'stat' in content1.lower():     #for every STAT related file the modified time is retrieved
+
+                # Getting the latest modified time of STAT files
+                a_stat_mtime=os.stat(dirnames+"/"+every_file).st_mtime
+                if a_stat_mtime > smax_mtime:
+                    smax_mtime = a_stat_mtime
+                    smax_file = every_file
+            else:                                #for every non-STAT related file the modified time is retrieved
+
+                # Getting the latest modified time of non-STAT files
+                n_stat_mtime=os.stat(dirnames+"/"+every_file).st_mtime
+                if n_stat_mtime > nmax_mtime:
+                    nmax_mtime = n_stat_mtime
+                    nmax_file = every_file
+
+
+
+    count+=1
+    if count>1:
+
+        print("\n---------------ACCESSING THE FOLDER",count-1,"----- FILE PATH:",dirnames,"----------------------------------\n")
+        print("\n",smax_file)
+        print("\n",nmax_file)
+
+        #opens the log monitor to get post log of all the files and actions
+
+        with open(log1, "a") as ptr:
+            ptr.write('\n%r \n ' % (dirnames))
+
+        # Transfer the file to the destinantion
+
+        try:                #Log files are updated to a separate file,the latest STAT is logged
+
+            with open(dirnames+"/"+smax_file) as f:
+                with open(latest + "/" + str(file_att_count) + "--" + smax_file, "w+") as f1:
+                    copyfile(dirnames + "/" + smax_file, latest + "/" + str(file_att_count) + "--" + smax_file)
+            with open(log1, "a") as ptr:
+                ptr.write('STAT file \n     %r \n ' %(smax_file))
+            file_list.append(smax_file)
+            file_att_count += 1
+
+        except:
+            print("\n   NOTE:STAT(currency) was'nt found here")
+            with open(log1, "a") as ptr:
+                ptr.write('##### NOTE: No STAT file here ####\n')
+        try:                 #Log files are updated to a separate file,the latest non-STAT is logged
+
+            with open(dirnames+"/"+nmax_file) as f:
+                with open(latest + "/" + str(file_att_count) + "--" + nmax_file, "w+") as f1:
+                    copyfile(dirnames + "/" + nmax_file, latest + "/" + str(file_att_count) + "--" + nmax_file)
+            with open(log1, "a") as ptr:
+                ptr.write('NON-STAT file \n     %r \n' %(nmax_file))
+            file_list.append(nmax_file)
+            file_att_count += 1
+
+        except:
+            print("   NOTE:non STAT file not present here")
+            with open(log1, "a") as ptr:
+                ptr.write('####NOTE:No STAT file here ####\n')
+
+        with open(log1, "a") as ptr:
+            ptr.write('\n ----------------------------------folder %r end--------------------------------------\n'%(count-1))
+
+
+
+print("=======================================================================================================================")
+
+
+'''
+END OF BLOACK 2 --------------------------------------------------------------------------------------------------------------------
+'''
+'''
+
+BLOCK  3
+
+'''
+c=0
+#Plz specify the path here ,where the latest stat and non-stat file should get redeposited
+for dirnames, dirpath, folder in (os.walk(latest)):
+
+    for each_file in folder:
+        print("\n\n", each_file)
+        '''
+        plz ignore this part
+        # if each_file.startswith("01"):
+        #     stat_name="STAT"
+        #     stat_no="02"
+        #     ar_rr="AR"
+        # else: #each_file.startswith("02"):
+        #     stat_name = ""
+        #     stat_no = "01"
+        #     ar_rr = "RR"
+        '''
+        with open(dirnames + "/" + each_file, "r") as pointer:
+            content = ""
+            count = 0
+            for line in pointer:
+                if count < 10:
+                    content += (line)
+                    count += 1
+            content = content.lower()
+            # print(content)
+            if "period to date for" in content:
+                # print(content.index("for"))
+                val = content.index("for")
+                date = content[val + 4:val + 10]
+                print(date)
+                mmm = date[:3]
+                yy = date[-2:]
+            if "entity" in content:
+                val2 = content.index("entity:")
+                # print(val2)
+                print(content[val2 + 9:val2 + 12])
+                number = "300" + content[val2 + 9:val2 + 12]
+                print(number)
+
+            if "currency" in content:
+                st_in = content.index("currency")
+                print(content[st_in + 11:st_in + 35])
+
+                if  "stat" in content[st_in + 11:st_in + 35].lower():
+                    stat_name = "STAT"
+                    stat_no = "02"
+                    ar_rr = "AR"
+                else:
+                    stat_name = ""
+                    stat_no = "01"
+                    ar_rr = "RR"
+
+            c += 1
+
+        file_name = stat_no + "APAC-GoldPack" + stat_name + "~AC9_CPSETL_" + number + "~WLTest~" + mmm.capitalize() + "-" + yy + "~" + ar_rr + ".txt"
+        print(file_name)
+        print(c)
+        with open(target+"/" + file_name, "w+") as new: #Specify the path where the files,processed has to get deposited
+            with open(dirnames + "/" + each_file, "r") as f:
+                for line in f:
+                    new.write(line)
+        with open(log2,"a") as ptr2:  #Another log file which gives info on which file has changed its name to what?
+            ptr2.write('%s>>>>>>>>>>>>>> %s \n'%(each_file,file_name))
+        print("-----------------------------------------------------------------------------------------")
+
+time1=datetime.datetime.now()
+
+print((time1))
+with open(log1,'a+') as d:
+    d.write("\n\n==================================================================%s===============================================\n\n"%(time))
+
+
+with open(log2,'a+') as e:
+    e.write("\n\n=================================================================================================================\n\n")
+
+
+print("-------------------------------------------")
+
+print("|      the number of files are:  %d"%(len(file_list)),"                  |")
+
+print("-------------------------------------------")
+
+
+
+print("+++++++++++++Execution Time : %.4s"%  (time.time() - start),"++++++++++++++++++")
+
+'''
+END OF BLOCK 3
+'''
+
+
+
+
+
+'''
+
+                                                SUMMARY
+
+The block 1 of the code has three brief stages,being:
+	*Specify/create all the paths(source,target,log_file etc).
+	*Create the copy of the Source
+	*Truncaating the existing target folders(if they have any).
+
+
+The block 2 is mainly on picking the Last modified STAT and TB,the things done in this block are:
+	*Itereate through each of the folders in the backed-up directory.
+	*Identify and pick the last modified STAT and TB files and trasfer them to another folder.
+	*Update the log files with the action so performed
+
+The block 3 renames the file:
+	*It itertes through all the latest file so slected from the folder created exclusivly for this purpose.
+	*Picks the Date of creation,currency ,stat/tb and finally assignes AR to STAT files and RR to the other.
+	*All the STATS are prefixed with number "01" and "02" for the other TBs.
+	*The log file is Updated with the appropriate change. 
+'''
